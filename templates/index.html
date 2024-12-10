@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="dashboard">
+    <header>
+        <h1>Alert Dashboard</h1>
+    </header>
+    <div class="content">
+        <section class="recent-alerts">
+            <h2>Top 25 Most Recent Alerts</h2>
+            <ul>
+                {{range .RecentAlerts}}
+                <li>
+                    <strong>{{.Name}}</strong> - {{.Priority}}<br>
+                    Created At: {{.CreatedAt.Format "2006-01-02 15:04:05"}}<br>
+                    Cleared: {{if .Cleared}}Yes{{else}}No{{end}}
+                </li>
+                {{end}}
+            </ul>
+        </section>
+        <section class="priority-alerts">
+            <h2>Highest Priority Alerts ({{.PriorityCount}} total)</h2>
+            <ul id="priority-alerts-list">
+                {{range .PriorityAlerts}}
+                <li>
+                    <strong>{{.Name}}</strong> - {{.Priority}}<br>
+                    Created At: {{.CreatedAt.Format "2006-01-02 15:04:05"}}<br>
+                    Cleared: {{if .Cleared}}Yes{{else}}No{{end}}
+                </li>
+                {{end}}
+            </ul>
+        </section>
+    </div>
+    <footer>
+        <p>Page Load Time: {{.PageLoadTime}}</p>
+        <p>Recent Alerts Query Time: {{.RecentQueryTime}}</p>
+        <p>Priority Alerts Query Time: {{.PriorityQueryTime}}</p>
+        <p>Total Priority Load Time: <span id="total-priority-load-time">{{.TotalPriorityLoadTime}}</span></p>
+    </footer>
+</div>
+<script>
+    let bucketIndex = {{.PriorityBucketCount}};
+    let totalAlerts = {{.PriorityCount}};
+
+    let totalPriorityLoadTime = parseFloat("{{.PriorityQueryTime}}".replace(' ms', ''));
+
+    function loadMoreAlerts(index) {
+        const requests = [];
+        requests.push(fetch(`/loadMoreAlerts?bucketIndex=${index}`));
+
+        Promise.all(requests)
+            .then(responses => Promise.all(responses.map(res => res.json())))
+            .then(dataArray => {
+                const list = document.getElementById('priority-alerts-list');
+
+                dataArray.forEach(data => {
+                    data.alerts.reverse().forEach(alert => {
+                        const dateString = new Date(alert.createdAt).toISOString();
+                        const li = document.createElement('li');
+                        li.innerHTML = `<strong>${alert.name}</strong> - ${alert.priority}<br>
+                                    Created At: ${dateString.replace('T', ' ').substring(0, dateString.length-5)}<br>
+                                    Cleared: ${alert.cleared ? 'Yes' : 'No'}`;
+                        list.appendChild(li);
+                    });
+                    totalAlerts += data.count;
+                    totalPriorityLoadTime += parseFloat(data.queryTime.replace(' ms', ''));
+                });
+
+                document.querySelector('.priority-alerts h2').textContent = `Highest Priority Alerts (${totalAlerts} total)`;
+                document.getElementById('total-priority-load-time').textContent = `${totalPriorityLoadTime.toFixed(1)} ms`;
+
+                index -= 1
+                if(index >= 0) {
+                    loadMoreAlerts(index); // Continue loading if any bucket was full
+                }
+            })
+            .catch(error => console.error('Error loading more alerts:', error));
+    }
+    // Start loading additional buckets immediately after the initial page load
+    window.addEventListener('load', () => {
+        loadMoreAlerts(bucketIndex - 2);
+    });
+</script>
+</body>
+</html>

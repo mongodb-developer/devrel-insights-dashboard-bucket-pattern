@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+// Alert
+// An example structure that demonstrates an alert document.
 type Alert struct {
 	Name      string    `bson:"name" json:"name"`
 	Priority  string    `bson:"priority" json:"priority"`
@@ -23,6 +25,8 @@ type Alert struct {
 	Cleared   bool      `bson:"cleared" json:"cleared"`
 }
 
+// main
+// The main function that executes when running to Go language application.
 func main() {
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI("mongodb://localhost:27017"))
 	if err != nil {
@@ -76,12 +80,12 @@ func getRecentAlerts(client *mongo.Client) ([]Alert, time.Duration) {
 }
 */
 
-/*
-***
+/****
 The final getRecentAlerts function contains a single bucket of the 25 most
 recent alerts. These alerts are stored in a document in the _dashboard_
 collection with all 25 alerts stored in the `values` field.
-*/
+****/
+
 func getRecentAlerts(client *mongo.Client) ([]Alert, time.Duration) {
 	startTime := time.Now()
 	collection := client.Database("alertdb").Collection("dashboard")
@@ -219,6 +223,8 @@ func getPriorityAlerts(client *mongo.Client, bucketIndex int) ([]Alert, time.Dur
 	return result.Values, time.Since(startTime), result.Count
 }
 
+// getPriorityAlertCounts
+// A function that finds all "priority_bucket" documents in the dashboard collection.
 func getPriorityAlertsCount(client *mongo.Client) (int, time.Duration) {
 	startTime := time.Now()
 
@@ -235,6 +241,10 @@ func getPriorityAlertsCount(client *mongo.Client) (int, time.Duration) {
 	return int(count), time.Since(startTime)
 }
 
+// dashboardHandler
+// An asynchronous function that handles web requests for root (/).
+// It passes relevant information from the various functions in this
+// example application to the template engine.
 func dashboardHandler(w http.ResponseWriter, _ *http.Request, client *mongo.Client) {
 	startTime := time.Now()
 
@@ -277,6 +287,9 @@ func dashboardHandler(w http.ResponseWriter, _ *http.Request, client *mongo.Clie
 	}
 }
 
+// loadMoreAlertsHandler
+// An asynchronous function that handles JSON requests for any index of
+// "priority_bucket" documents specified by the _bucketIndex_ query value.
 func loadMoreAlertsHandler(w http.ResponseWriter, r *http.Request, client *mongo.Client) {
 	bucketIndex, _ := strconv.Atoi(r.URL.Query().Get("bucketIndex"))
 	alerts, queryTime, count := getPriorityAlerts(client, bucketIndex)
@@ -294,6 +307,8 @@ func loadMoreAlertsHandler(w http.ResponseWriter, r *http.Request, client *mongo
 	})
 }
 
+// formatDuration
+// A simple function for changing from a time.Duration type to a string.
 func formatDuration(d time.Duration) string {
 	ms := float64(d.Microseconds()) / 1000.0
 	return fmt.Sprintf("%.1f ms", ms)
